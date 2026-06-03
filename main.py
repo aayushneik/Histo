@@ -3,17 +3,27 @@ import time
 import json
 import os
 from threading import Thread
-from flask import Flask
+from flask import Flask, send_file, jsonify
 
-# ---- DUMMY WEB SERVER FOR RENDER PORT BINDING ----
-app = Flask('')
+# ---- DUMMY WEB SERVER (FLASK INITIALIZATION) ----
+# __name__ use karne se path bilkul sahi rehta hai
+app = Flask(__name__)
 
-@app.route('/')
+# strict_slashes=False se '/' lagane ya na lagane par galti nahi hogi
+@app.route('/', strict_slashes=False)
 def home():
-    return "🚀 Wingo Live Tracker is Running Successfully!"
+    return "🚀 Wingo Live Tracker is Running Successfully!<br><br>👉 Apni JSON file dekhne ke liye URL ke aakhiri me <b>/data</b> lagayein."
+
+@app.route('/data', strict_slashes=False)
+def download_file():
+    json_filename = "wingo_history.json"
+    if os.path.exists(json_filename):
+        return send_file(json_filename, mimetype='application/json')
+    else:
+        # 404 error ke bajaye khali list dikhayega agar abhi tak koi naya period nahi aaya hai
+        return jsonify([])
 
 def run_web_server():
-    # Render automatic PORT environment variable deta hai, use pakadna zaroori hai
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -112,9 +122,9 @@ def start_json_monitoring(json_filename="wingo_history.json"):
         time.sleep(5)
 
 if __name__ == "__main__":
-    # 1. Web Server ko alag thread me chalu karein taaki Render ko Port mil jaye
+    # 1. Web Server Start
     server_thread = Thread(target=run_web_server)
     server_thread.start()
     
-    # 2. Main Wingo tracker ko chalu karein
+    # 2. Wingo Tracker Start
     start_json_monitoring()
