@@ -5,11 +5,10 @@ import os
 from threading import Thread
 from flask import Flask, send_file, jsonify
 
-# ---- DUMMY WEB SERVER (FLASK INITIALIZATION) ----
-# __name__ use karne se path bilkul sahi rehta hai
+# ---- FLASK SERVER SETUP ----
 app = Flask(__name__)
 
-# strict_slashes=False se '/' lagane ya na lagane par galti nahi hogi
+# '/' aur '/data' dono par strict_slashes=False lagaya hai taaki trailing slash se error na aaye
 @app.route('/', strict_slashes=False)
 def home():
     return "🚀 Wingo Live Tracker is Running Successfully!<br><br>👉 Apni JSON file dekhne ke liye URL ke aakhiri me <b>/data</b> lagayein."
@@ -20,14 +19,10 @@ def download_file():
     if os.path.exists(json_filename):
         return send_file(json_filename, mimetype='application/json')
     else:
-        # 404 error ke bajaye khali list dikhayega agar abhi tak koi naya period nahi aaya hai
+        # Agar file abhi tak nahi bani hai, toh 404 ke bajaye khali list dikhayega
         return jsonify([])
 
-def run_web_server():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
-
-# ---- AAPKA WINGO LIVE TRACKER CODE ----
+# ---- WINGO LIVE TRACKER CODE ----
 def get_wingo_live_data():
     url = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
     headers = {
@@ -59,8 +54,9 @@ def get_wingo_live_data():
         print(f"📡 Network/API Error: {e}")
     return []
 
-def start_json_monitoring(json_filename="wingo_history.json"):
-    print("🚀 Wingo Live JSON Monitoring Shuru Ho Gaya Hai...")
+def start_json_monitoring():
+    json_filename = "wingo_history.json"
+    print("🚀 Wingo Live JSON Monitoring Background Me Shuru Ho Gaya Hai...")
     
     while True:
         saved_data = []
@@ -73,7 +69,6 @@ def start_json_monitoring(json_filename="wingo_history.json"):
                     for entry in saved_data:
                         saved_periods.add(str(entry.get("period")))
             except Exception as e:
-                print(f"⚠️ JSON read error: {e}")
                 saved_data = []
 
         records = get_wingo_live_data()
@@ -113,7 +108,7 @@ def start_json_monitoring(json_filename="wingo_history.json"):
                     saved_data.append(new_entry)
                     saved_periods.add(period_str)
                     has_new_data = True
-                    print(f"🆕 Saved -> {period_str} | Num: {num} | Size: {size}")
+                    print(f"🆕 Saved -> {period_str}")
             
             if has_new_data:
                 with open(json_filename, "w", encoding="utf-8") as f:
@@ -121,10 +116,12 @@ def start_json_monitoring(json_filename="wingo_history.json"):
                     
         time.sleep(5)
 
+# 🚀 [SUPER HACK]: Yeh background thread script load hote hi automatic chalu ho jayegi
+monitor_thread = Thread(target=start_json_monitoring)
+monitor_thread.daemon = True
+monitor_thread.start()
+
 if __name__ == "__main__":
-    # 1. Web Server Start
-    server_thread = Thread(target=run_web_server)
-    server_thread.start()
-    
-    # 2. Wingo Tracker Start
-    start_json_monitoring()
+    # Agar local ya python command se chale toh port bind karein
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
