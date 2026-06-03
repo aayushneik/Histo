@@ -2,7 +2,22 @@ import requests
 import time
 import json
 import os
+from threading import Thread
+from flask import Flask
 
+# ---- DUMMY WEB SERVER FOR RENDER PORT BINDING ----
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "🚀 Wingo Live Tracker is Running Successfully!"
+
+def run_web_server():
+    # Render automatic PORT environment variable deta hai, use pakadna zaroori hai
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+# ---- AAPKA WINGO LIVE TRACKER CODE ----
 def get_wingo_live_data():
     url = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
     headers = {
@@ -35,12 +50,9 @@ def get_wingo_live_data():
     return []
 
 def start_json_monitoring(json_filename="wingo_history.json"):
-    print("🚀 Wingo Live JSON Monitoring Script Shuru Ho Chuka Hai...")
-    print(f"📝 Naye periods automatic '{json_filename}' me save hote rahenge.\n")
+    print("🚀 Wingo Live JSON Monitoring Shuru Ho Gaya Hai...")
     
-    # Loop hamesha chalta rahega
     while True:
-        # 1. Pehle se saved data ko JSON file se read karna (agar file exist karti hai)
         saved_data = []
         saved_periods = set()
         
@@ -48,19 +60,16 @@ def start_json_monitoring(json_filename="wingo_history.json"):
             try:
                 with open(json_filename, "r", encoding="utf-8") as f:
                     saved_data = json.load(f)
-                    # Saare purane periods ko set me daalna taaki duplicate check ho sake
                     for entry in saved_data:
                         saved_periods.add(str(entry.get("period")))
             except Exception as e:
-                print(f"⚠️ JSON read karne me dikkat aayi (File recover ho rahi hai): {e}")
+                print(f"⚠️ JSON read error: {e}")
                 saved_data = []
 
-        # 2. Live API se fresh data nikalna
         records = get_wingo_live_data()
         has_new_data = False
         
         if records:
-            # Puraane se naye periods ki taraf loop chalana (reversed)
             for item in reversed(records):
                 period = item.get('issueNumber') or item.get('IssueNumber') or item.get('period') or item.get('Period')
                 num_raw = item.get('number') or item.get('Number') or item.get('drawNumber')
@@ -71,12 +80,10 @@ def start_json_monitoring(json_filename="wingo_history.json"):
                 
                 period_str = str(period).strip()
                 
-                # Agar yeh period pehle se JSON me nahi hai, toh add karein
                 if period_str not in saved_periods:
                     num = int(num_raw)
                     size = "big" if num >= 5 else "small"
                     
-                    # Color fallback logic
                     if color_raw:
                         color = str(color_raw).lower().replace(" ", "")
                     else:
@@ -86,7 +93,6 @@ def start_json_monitoring(json_filename="wingo_history.json"):
                         elif num == 5: color = "green,violet"
                         else: color = "unknown"
                     
-                    # Naya object banana
                     new_entry = {
                         "period": period_str,
                         "number": num,
@@ -94,19 +100,21 @@ def start_json_monitoring(json_filename="wingo_history.json"):
                         "size": size
                     }
                     
-                    # List me append karna
                     saved_data.append(new_entry)
                     saved_periods.add(period_str)
                     has_new_data = True
-                    print(f"🆕 New Period Saved in JSON -> {period_str} | Num: {num} | Size: {size}")
+                    print(f"🆕 Saved -> {period_str} | Num: {num} | Size: {size}")
             
-            # 3. Agar naya data mila hai, toh file ko naye format me rewrite karna
             if has_new_data:
                 with open(json_filename, "w", encoding="utf-8") as f:
                     json.dump(saved_data, f, indent=4, ensure_ascii=False)
                     
-        # Har 5 second me server check karega
         time.sleep(5)
 
 if __name__ == "__main__":
+    # 1. Web Server ko alag thread me chalu karein taaki Render ko Port mil jaye
+    server_thread = Thread(target=run_web_server)
+    server_thread.start()
+    
+    # 2. Main Wingo tracker ko chalu karein
     start_json_monitoring()
