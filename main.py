@@ -4,7 +4,7 @@ from pymongo import MongoClient
 
 # 🌐 1. MongoDB Connection Settings
 # Agar local h, toh yahi rehne dein. Cloud Atlas ke liye apna connection string dalein.
-MONGO_URI = "mongodb://localhost:27017/"
+MONGO_URI = "mongodb+srv://Romeo:pagal0@catch.tfjvhzk.mongodb.net/?appName=Catch"
 DB_NAME = "wingo_database"
 COLLECTION_NAME = "history_records"
 
