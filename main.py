@@ -5,13 +5,9 @@ import threading
 from flask import Flask, render_template_string
 from pymongo import MongoClient
 
-# 🌐 1. MongoDB Connection Settings
-# Render ke Dashboard me Environment Variables me 'MONGO_URI' set karein.
-# Agar vahan set nahi karenge toh niche diye gaye backup Atlas link ka use hoga.
-MONGO_URI = os.environ.get(
-    "MONGO_URI", 
-    "mongodb+srv://Romeo:pagal0@cluster0.mongodb.net/wingo_database?retryWrites=true&w=majority"
-)
+# 🌐 1. MongoDB Connection Settings (Direct Connection String)
+# CRITICAL: Niche 'abcde' ko mita kar apne MongoDB Atlas ka asli cluster ID daal dein!
+MONGO_URI = "mongodb+srv://Romeo:pagal0123@cluster0.abcde.mongodb.net/wingo_database?retryWrites=true&w=majority"
 DB_NAME = "wingo_database"
 COLLECTION_NAME = "history_records"
 
@@ -31,19 +27,17 @@ PAYLOAD = {
     "type": 1
 }
 
-# Global variables live status track karne ke liye
 live_status = {"status": "Starting...", "total_saved_db": 0, "last_check": "Never"}
 
-# 🌐 3. Flask Web Server Setup (Render ki 404 aur Port Error theek karne ke liye)
 app = Flask(__name__)
 
-# Render ka main URL kholne par yeh sunder dashboard dikhega (No more 404!)
 HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>Wingo MongoDB Tracker Status</title>
-    <meta http-equiv="refresh" content="5"> <style>
+    <meta http-equiv="refresh" content="5">
+    <style>
         body { font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; text-align: center; padding: 50px; }
         .card { background: #1e293b; padding: 30px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #334155; }
         h1 { color: #38bdf8; }
@@ -65,7 +59,6 @@ HTML_DASHBOARD = """
 
 @app.route('/')
 def home():
-    # Database se realtime total count nikaalna dashboard par dikhane ke liye
     try:
         client = MongoClient(MONGO_URI)
         count = client[DB_NAME][COLLECTION_NAME].count_documents({})
@@ -75,7 +68,6 @@ def home():
         pass
     return render_template_string(HTML_DASHBOARD, data=live_status)
 
-# ⏱️ 4. Background Thread: Jo hamesha data MongoDB me bhejta rahega
 def fetch_and_save_live_data():
     print("🚀 Background Tracking Started...")
     while True:
@@ -135,7 +127,6 @@ def fetch_and_save_live_data():
                             "size": size
                         }
 
-                        # 🚫 Duplicate Entry Check ($setOnInsert)
                         res = collection.update_one(
                             {"period": period_str},
                             {"$setOnInsert": formatted_document},
@@ -144,7 +135,6 @@ def fetch_and_save_live_data():
                         
                         if res.upserted_id is not None:
                             inserted_count += 1
-                            print(f"🆕 Saved to DB: {period_str} | Number: {num}")
 
                     live_status["status"] = "Active ✅ (Running Smoothly)"
                 else:
@@ -155,16 +145,13 @@ def fetch_and_save_live_data():
             client.close()
         except Exception as e:
             print(f"❌ Error: {e}")
-            live_status["status"] = f"DB/Connection Error ❌ ({str(e)[:30]})"
+            live_status["status"] = f"DB Error ❌ (Check Cluster ID/IP Whitelist)"
             
-        time.sleep(10) # Har 10 second me check karega
+        time.sleep(10)
 
 if __name__ == "__main__":
-    # Background worker start karna
     tracker_thread = threading.Thread(target=fetch_and_save_live_data, daemon=True)
     tracker_thread.start()
     
-    # Render ke automatic port par Flask ko run karna
     port = int(os.environ.get("PORT", 10000))
-    print(f"🌐 Starting Web Server on port {port}...")
     app.run(host="0.0.0.0", port=port)
