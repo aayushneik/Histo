@@ -7,7 +7,7 @@ from pymongo import MongoClient
 
 # 🌐 1. MongoDB Connection Settings
 # NOTE: 'abcde' ko mita kar apne MongoDB Atlas ka asli cluster ID daalna mat bhoolna!
-MONGO_URI = "mongodb+srv://Romeo:pagal0123@cluster0.tfjvhzk.mongodb.net/wingo_database?retryWrites=true&w=majority"
+MONGO_URI = "mongodb+srv://Romeo:pagal0@cluster0.tfjvhzk.mongodb.net/wingo_database?retryWrites=true&w=majority"
 DB_NAME = "wingo_database"
 COLLECTION_NAME = "history_records"
 
