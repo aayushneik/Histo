@@ -5,14 +5,18 @@ import threading
 from flask import Flask, render_template_string
 from pymongo import MongoClient
 
-# 🌐 1. MongoDB Connection Settings (Direct Connection String)
-# CRITICAL: Niche 'abcde' ko mita kar apne MongoDB Atlas ka asli cluster ID daal dein!
+# 🌐 1. MongoDB Connection Settings
+# NOTE: 'abcde' ko mita kar apne MongoDB Atlas ka asli cluster ID daalna mat bhoolna!
 MONGO_URI = "mongodb+srv://Romeo:pagal0123@cluster0.abcde.mongodb.net/wingo_database?retryWrites=true&w=majority"
 DB_NAME = "wingo_database"
 COLLECTION_NAME = "history_records"
 
-# 🎮 2. Wingo API Configuration
+# 🎮 2. Wingo API & Proxy Configuration
+_PROXY_URL = "https://api.codetabs.com/v1/proxy?quest="
 API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
+
+# Dono URLs ko jodh kar final proxy URL banana
+FINAL_REQUEST_URL = _PROXY_URL + API_URL
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -27,6 +31,7 @@ PAYLOAD = {
     "type": 1
 }
 
+# Live status track karne ke liye global variable
 live_status = {"status": "Starting...", "total_saved_db": 0, "last_check": "Never"}
 
 app = Flask(__name__)
@@ -51,7 +56,7 @@ HTML_DASHBOARD = """
         <p class="status">Status: {{ data.status }}</p>
         <p class="info">Total Records in MongoDB: <strong>{{ data.total_saved_db }}</strong></p>
         <p class="info">Last Checked: {{ data.last_check }}</p>
-        <p style="color: #64748b; font-size: 0.85rem; margin-top: 20px;">This page updates automatically every 5 seconds.</p>
+        <p style="color: #64748b; font-size: 0.85rem; margin-top: 20px;">Proxy Mode: ON (Codetabs)</p>
     </div>
 </body>
 </html>
@@ -69,7 +74,7 @@ def home():
     return render_template_string(HTML_DASHBOARD, data=live_status)
 
 def fetch_and_save_live_data():
-    print("🚀 Background Tracking Started...")
+    print("🚀 Background Tracking Started with Proxy...")
     while True:
         current_time = time.strftime("%H:%M:%S", time.localtime())
         live_status["last_check"] = current_time
@@ -79,7 +84,8 @@ def fetch_and_save_live_data():
             db = client[DB_NAME]
             collection = db[COLLECTION_NAME]
             
-            response = requests.post(API_URL, json=PAYLOAD, headers=HEADERS, timeout=10)
+            # 🔄 Proxy URL par POST request bhejna
+            response = requests.post(FINAL_REQUEST_URL, json=PAYLOAD, headers=HEADERS, timeout=15)
             
             if response.status_code == 200:
                 result = response.json()
@@ -136,11 +142,11 @@ def fetch_and_save_live_data():
                         if res.upserted_id is not None:
                             inserted_count += 1
 
-                    live_status["status"] = "Active ✅ (Running Smoothly)"
+                    live_status["status"] = "Active ✅ (Running via Proxy)"
                 else:
-                    live_status["status"] = "Connected ✅ (Waiting for next draw...)"
+                    live_status["status"] = "Connected via Proxy ✅ (Waiting for next draw...)"
             else:
-                live_status["status"] = f"API Error ❌ (Status: {response.status_code})"
+                live_status["status"] = f"Proxy/API Error ❌ (Status: {response.status_code})"
                 
             client.close()
         except Exception as e:
