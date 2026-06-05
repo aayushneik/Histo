@@ -155,6 +155,41 @@ def fetch_and_save_live_data():
             
         time.sleep(10)
 
+# Is naye function ko 'main.py' me Flask app setup ke paas jod dein
+@app.route('/download')
+def download_data():
+    try:
+        from bson import ObjectId
+        import json
+        from flask import Response
+        
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+        collection = db[COLLECTION_NAME]
+        
+        # Database se saara data nikalna
+        all_records = list(collection.find({}))
+        client.close()
+        
+        # ObjectId ko string me badalne ke liye handler
+        class JSONEncoder(json.JSONEncoder):
+            def default(self, o):
+                if isinstance(o, ObjectId): return str(o)
+                return json.JSONEncoder.default(self, o)
+        
+        # JSON data taiyar karna
+        json_data = json.dumps(all_records, indent=4, cls=JSONEncoder, ensure_ascii=False)
+        
+        # Direct browser ko file download karne ke liye response bhejna
+        return Response(
+            json_data,
+            mimetype="application/json",
+            headers={"Content-disposition": "attachment; filename=wingo_data_backup.json"}
+        )
+    except Exception as e:
+        return f"Error creating file: {str(e)}"
+
+
 if __name__ == "__main__":
     tracker_thread = threading.Thread(target=fetch_and_save_live_data, daemon=True)
     tracker_thread.start()
